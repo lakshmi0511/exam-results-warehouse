@@ -1,0 +1,13 @@
+# generated data and state
+db/
+sample/raw/
+*.sqlite
+*.sqlite-*
+*.state
+
+# environments and caches
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store

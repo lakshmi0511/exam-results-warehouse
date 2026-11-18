@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exam Results Warehouse</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1d2330; --muted: #667085; --line: #e3e6eb;
+    --accent: #2f6fdb; --accent-soft: #e7effc; --good: #1f8a5b; --warn: #b7791f; --bad: #c2413b;
+    --radius: 10px; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #12151b; --panel: #1a1f27; --ink: #e6e9ef; --muted: #98a2b3; --line: #2a313c;
+            --accent: #6ea0f5; --accent-soft: #1f2c44; --good: #4cc28c; --warn: #e0a84a; --bad: #ef6b63; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 18px 24px 0; max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 18px; margin: 0 0 2px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 14px; }
+  nav { display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  nav button { background: none; border: 0; padding: 10px 14px; font: inherit; color: var(--muted);
+               cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+  nav button.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+  main { max-width: 1180px; margin: 0 auto; padding: 20px 24px 60px; }
+  section { display: none; } section.on { display: block; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+           padding: 16px; margin-bottom: 16px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  input, select { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+                  background: var(--panel); color: var(--ink); }
+  input[type=search] { flex: 1; min-width: 220px; }
+  button.btn { font: inherit; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line);
+               background: var(--panel); color: var(--ink); cursor: pointer; }
+  button.btn:disabled { opacity: .4; cursor: default; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.click { cursor: pointer; } tr.click:hover td { background: var(--accent-soft); }
+  .scroll { overflow-x: auto; }
+  .mono { font-family: var(--mono); font-size: 12.5px; }
+  .muted { color: var(--muted); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .tile b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .tile span { color: var(--muted); font-size: 12px; }
+  .bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); min-width: 120px; }
+  .bar i { display: block; height: 100%; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 600;
+           background: var(--accent-soft); color: var(--accent); }
+  .b-present, .b-loaded { background: color-mix(in srgb, var(--good) 15%, transparent); color: var(--good); }
+  .b-absent, .b-removed { background: color-mix(in srgb, var(--bad) 15%, transparent); color: var(--bad); }
+  .b-replaced { background: var(--accent-soft); color: var(--accent); }
+  .b-superseded, .b-skipped { background: color-mix(in srgb, var(--warn) 15%, transparent); color: var(--warn); }
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 2px 16px; margin: 6px 0 4px; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
+  .src { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .card + .card { border-top: 1px dashed var(--line); margin-top: 10px; padding-top: 10px; }
+  h2 { font-size: 15px; margin: 0 0 10px; } h3 { font-size: 13px; margin: 0 0 6px; }
+  .hist { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; align-items: end; height: 180px; margin-top: 8px; }
+  .hist div { background: var(--accent); border-radius: 4px 4px 0 0; position: relative; min-height: 1px; }
+  .hist div span { position: absolute; top: -18px; left: 0; right: 0; text-align: center; font-size: 11px; color: var(--muted); }
+  .hist-x { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; font-size: 11px; color: var(--muted); text-align: center; margin-top: 4px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } header, main { padding-left: 16px; padding-right: 16px; } }
+  .empty { color: var(--muted); padding: 12px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Exam Results Warehouse</h1>
+  <p class="sub">Read-only view of every exam-day export in the shared folder, with the file and row each value came from.</p>
+  <nav id="tabs">
+    <button data-tab="search" class="on">Search</button>
+    <button data-tab="days">Exam days</button>
+    <button data-tab="courses">Courses</button>
+    <button data-tab="tables">Tables</button>
+    <button data-tab="log">Updates</button>
+  </nav>
+</header>
+<main>
+  <section id="search" class="on">
+    <div class="panel"><div class="row">
+      <input id="q" type="search" placeholder="Roll number, email or part of a name" autocomplete="off" autofocus>
+    </div></div>
+    <div id="results"></div>
+    <div id="person"></div>
+  </section>
+  <section id="days"><div id="days-body"></div></section>
+  <section id="courses"><div class="grid2"><div class="panel scroll" id="course-list"></div><div id="course-detail"></div></div></section>
+  <section id="tables">
+    <div class="panel"><div class="row">
+      <select id="tname"></select>
+      <input id="tq" type="search" placeholder="Filter rows (any column)">
+      <button class="btn" id="prev">Prev</button><span id="pageinfo" class="muted"></span><button class="btn" id="next">Next</button>
+    </div></div>
+    <div class="panel scroll" id="tbody"></div>
+  </section>
+  <section id="log"><div id="log-body"></div></section>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = v => v === null || v === undefined || v === "" ? '<span class="muted">-</span>' : esc(v);
+const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
+async function api(path) {
+  const r = await fetch(path);
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+function badge(text) { return `<span class="badge b-${esc(text)}">${esc(text)}</span>`; }
+function scoreCell(r) {
+  if (r.attendance === "absent") return badge("absent");
+  if (r.pct === null || r.pct === undefined) return '<span class="muted">no result</span>';
+  return `${esc(r.score)}/${esc(r.max_score)} <span class="muted">(${esc(r.pct)}%)</span>`;
+}
+
+// ---------------------------------------------------------------- tabs
+const loaded = {};
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => show(b.dataset.tab));
+function show(tab) {
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+  document.querySelectorAll("main section").forEach(s => s.classList.toggle("on", s.id === tab));
+  if (!loaded[tab]) { loaded[tab] = true; ({days: loadDays, courses: loadCourses, tables: loadTableList, log: loadLog}[tab] || (() => {}))(); }
+  history.replaceState(null, "", "#" + tab);
+}
+
+// ---------------------------------------------------------------- search
+$("#q").addEventListener("input", debounce(async e => {
+  const q = e.target.value.trim();
+  $("#person").innerHTML = "";
+  if (q.length < 2) { $("#results").innerHTML = ""; return; }
+  const {results} = await api("/api/search?q=" + encodeURIComponent(q));
+  if (!results.length) { $("#results").innerHTML = `<div class="panel empty">No candidates match “${esc(q)}”.</div>`; return; }
+  $("#results").innerHTML = `<div class="panel scroll"><table><thead><tr><th>Roll</th><th>Name</th><th>Email</th><th>Course</th><th>Day / shift</th><th>Result</th></tr></thead><tbody>${
+    results.map(r => `<tr class="click" data-roll="${esc(r.roll_no)}"><td class="mono">${esc(r.roll_no)}</td><td>${fmt(r.name)}</td><td>${fmt(r.email)}</td><td>${esc(r.course_code)} <span class="muted">${esc(r.course_name)}</span></td><td>${esc(r.exam_day)} / ${esc(r.shift)}</td><td>${scoreCell(r)}</td></tr>`).join("")
+  }</tbody></table>${results.length === 50 ? '<p class="muted">Showing the first 50 matches.</p>' : ""}</div>`;
+  document.querySelectorAll("#results tr.click").forEach(tr => tr.onclick = () => loadPerson(tr.dataset.roll));
+}, 200));
+
+async function loadPerson(roll) {
+  const p = await api("/api/person?roll=" + encodeURIComponent(roll));
+  const summary = p.summary.length ? `<table><thead><tr><th>Roll</th><th>Course</th><th>Day / shift</th><th>Centre</th><th>Exam</th><th>Assignments</th><th>Eligible</th></tr></thead><tbody>${
+    p.summary.map(r => `<tr><td class="mono">${esc(r.roll_no)}</td><td>${esc(r.course_code)} <span class="muted">${esc(r.course_name)}</span></td><td>${esc(r.exam_day)} / ${esc(r.shift)}</td><td>${fmt(r.centre)}</td><td>${scoreCell(r)}</td><td>${r.assignment_avg != null ? esc(r.assignment_avg) + "/25" : '<span class="muted">-</span>'}</td><td>${fmt(r.eligible)}</td></tr>`).join("")
+  }</tbody></table>` : '<p class="empty">Not in the allocation list.</p>';
+  const sections = p.sections.map(s => `<div class="panel"><h3>${esc(s.title)} <span class="muted mono">${esc(s.table)}</span></h3>${
+    s.rows.length ? s.rows.map(r => `<div class="card"><dl class="kv">${
+      Object.entries(r).filter(([k, v]) => !["source_file", "source_row"].includes(k) && v !== null && v !== "")
+        .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")
+    }</dl><div class="src">from ${esc(r.source_file)} · row ${esc(r.source_row)}</div></div>`).join("") : '<p class="empty">Nothing on record.</p>'
+  }</div>`).join("");
+  $("#person").innerHTML = `<div class="panel"><h2>${esc(p.name || "(name unknown)")}</h2><p class="muted">${esc(p.emails.join(", ") || "no email on record")} · rolls ${esc(p.rolls.join(", "))}</p>${summary}</div>${sections}`;
+  $("#person").scrollIntoView({behavior: "smooth", block: "start"});
+}
+
+// ---------------------------------------------------------------- exam days
+async function loadDays() {
+  const {slots, totals} = await api("/api/overview");
+  if (!slots.length) { $("#days-body").innerHTML = '<div class="panel empty">No allocation loaded yet.</div>'; return; }
+  const tile = (v, l) => `<div class="tile"><b>${fmt(v)}</b><span>${l}</span></div>`;
+  $("#days-body").innerHTML = `<div class="tiles">${tile(totals.registrations, "registrations")}${tile(totals.people, "people")}${tile(totals.courses, "courses")}${tile(totals.present, "present")}${tile(totals.absent, "absent")}${tile(totals.avg_pct != null ? totals.avg_pct + "%" : null, "average score")}</div>
+  <div class="panel scroll"><table><thead><tr><th>Day</th><th>Shift</th><th>Courses</th><th class="num">Scheduled</th><th class="num">Present</th><th class="num">Absent</th><th class="num">No result</th><th>Attendance</th><th class="num">Avg score</th></tr></thead><tbody>${
+    slots.map(s => `<tr><td>${esc(s.exam_day)}</td><td>${esc(s.shift)}</td><td class="mono">${esc((s.courses || "").replaceAll(",", ", "))}</td><td class="num">${s.scheduled}</td><td class="num">${s.present}</td><td class="num">${s.absent}</td><td class="num">${s.no_result}</td>
+      <td><div class="bar" title="${pct(s.present, s.scheduled)}% present"><i style="width:${pct(s.present, s.scheduled)}%;background:var(--good)"></i><i style="width:${pct(s.absent, s.scheduled)}%;background:var(--bad)"></i></div></td>
+      <td class="num">${s.avg_pct != null ? esc(s.avg_pct) + "%" : "-"}</td></tr>`).join("")
+  }</tbody></table><p class="muted">Bar: green present, red absent, grey no result received yet.</p></div>`;
+}
+
+// ---------------------------------------------------------------- courses
+async function loadCourses() {
+  const {courses} = await api("/api/courses");
+  $("#course-list").innerHTML = `<table><thead><tr><th>Course</th><th class="num">Reg.</th><th class="num">Present</th><th class="num">Avg</th></tr></thead><tbody>${
+    courses.map(c => `<tr class="click" data-id="${esc(c.course_code)}"><td><b>${esc(c.course_code)}</b> <span class="muted">${esc(c.course_name)}</span></td><td class="num">${c.registered}</td><td class="num">${c.present}</td><td class="num">${c.avg_pct != null ? esc(c.avg_pct) + "%" : "-"}</td></tr>`).join("")
+  }</tbody></table>`;
+  document.querySelectorAll("#course-list tr.click").forEach(tr => tr.onclick = () => loadCourse(tr.dataset.id));
+  if (courses.length) loadCourse(courses[0].course_code);
+}
+async function loadCourse(id) {
+  const {summary: s, histogram, top} = await api("/api/course?id=" + encodeURIComponent(id));
+  const max = Math.max(1, ...histogram.map(h => h.count));
+  $("#course-detail").innerHTML = `<div class="panel"><h2>${esc(s.course_code)} · ${esc(s.course_name)}</h2>
+    <p class="muted">${s.registered} registered · ${s.present} present · ${s.absent} absent · average ${s.avg_pct != null ? esc(s.avg_pct) + "%" : "-"} (range ${fmt(s.min_pct)}-${fmt(s.max_pct)}%)</p>
+    <h3>Score distribution</h3>
+    <div class="hist">${histogram.map(h => `<div style="height:${100 * h.count / max}%" title="${esc(h.bucket)}: ${h.count}"><span>${h.count || ""}</span></div>`).join("")}</div>
+    <div class="hist-x">${histogram.map((h, i) => `<span>${i * 10}</span>`).join("")}</div>
+    <h3 style="margin-top:16px">Top scores</h3>
+    <table><tbody>${top.map(t => `<tr class="click" data-roll="${esc(t.roll_no)}"><td class="mono">${esc(t.roll_no)}</td><td>${esc(t.name)}</td><td class="num">${esc(t.pct)}%</td></tr>`).join("")}</tbody></table></div>`;
+  document.querySelectorAll("#course-detail tr.click").forEach(tr => tr.onclick = () => { show("search"); loadPerson(tr.dataset.roll); });
+}
+
+// ---------------------------------------------------------------- tables
+let tpage = 1;
+async function loadTableList() {
+  const {tables} = await api("/api/table");
+  $("#tname").innerHTML = tables.map(t => `<option value="${esc(t.name)}">${esc(t.name)} (${t.rows})</option>`).join("");
+  const pref = tables.find(t => t.name === "candidate_lookup");
+  if (pref) $("#tname").value = pref.name;
+  loadTable();
+}
+async function loadTable() {
+  const name = $("#tname").value; if (!name) return;
+  const t = await api(`/api/table?name=${encodeURIComponent(name)}&q=${encodeURIComponent($("#tq").value)}&page=${tpage}`);
+  tpage = t.page;
+  $("#pageinfo").textContent = `page ${t.page} of ${t.pages} · ${t.total} rows`;
+  $("#prev").disabled = t.page <= 1; $("#next").disabled = t.page >= t.pages;
+  $("#tbody").innerHTML = t.rows.length ? `<table><thead><tr>${t.columns.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${
+    t.rows.map(r => `<tr>${r.map(v => `<td>${fmt(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>` : '<p class="empty">No rows.</p>';
+}
+$("#tname").onchange = () => { tpage = 1; loadTable(); };
+$("#tq").addEventListener("input", debounce(() => { tpage = 1; loadTable(); }, 250));
+$("#prev").onclick = () => { tpage--; loadTable(); };
+$("#next").onclick = () => { tpage++; loadTable(); };
+
+// ---------------------------------------------------------------- updates
+async function loadLog() {
+  const {log, files} = await api("/api/log");
+  $("#log-body").innerHTML = `<div class="panel scroll"><h2>Refresh log</h2><table><thead><tr><th>When</th><th>Action</th><th class="num">Rows</th><th>Table</th><th>File</th><th>Note</th></tr></thead><tbody>${
+    log.map(l => `<tr><td class="mono">${esc(l.at.replace("T", " "))}</td><td>${badge(l.action)}</td><td class="num">${l.rows}</td><td class="mono">${fmt(l.table)}</td><td class="mono">${esc(l.source_file)}</td><td class="muted">${fmt(l.note)}</td></tr>`).join("")
+  }</tbody></table></div>
+  <div class="panel scroll"><h2>Files on record</h2><table><thead><tr><th>File</th><th>Tab</th><th>Table</th><th>Group</th><th class="num">Rows</th><th>Status</th></tr></thead><tbody>${
+    files.map(f => `<tr><td class="mono">${esc(f.source_file)}</td><td>${fmt(f.unit)}</td><td class="mono">${fmt(f.table)}</td><td class="mono">${fmt(f.group_key)}</td><td class="num">${f.rows}</td><td>${badge(f.status)}</td></tr>`).join("")
+  }</tbody></table></div>`;
+}
+
+const start = location.hash.slice(1);
+if (["days", "courses", "tables", "log"].includes(start)) show(start);
+</script>
+</body>
+</html>
